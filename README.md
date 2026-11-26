@@ -175,6 +175,9 @@ USB シリアル（CH9102F, `/dev/ttyACM0`）経由で `m5stack-core16m` を書�
 * 認証なし `/api/*` → 401、CORS プリフライト → 204 + `Access-Control-Allow-Origin: *`
 * GitHub Actions で Pages デプロイ成功 → `https://iba-hok.github.io/m5stack-llm-ir/`
 * Playwright による GUI E2E: **PASS**（接続・家電一覧・生 health、ブラウザエラー 0）
+* スキル検証: 会話コンテキストなしの新規サブエージェント 3 回（`fake` / `stub` バックエンド）で
+  [`skill/SKILL.md`](skill/SKILL.md) のみから正しく操作できることを確認
+  → 詳細は [docs/skill-validation.md](docs/skill-validation.md)
 
 起動ログの例:
 

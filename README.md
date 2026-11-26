@@ -314,6 +314,38 @@ curl -s -o /dev/null -w "%{http_code}\n" $WORKER/api/devices
 * 実機は NTP で時刻同期してから WSS 接続します（Cloudflare の TLS 証明書検証のため）。
 * ブラウザ（GitHub Pages）からのクロスオリジン呼び出しも CORS プリフライト込みで確認済み。
 
+## エージェント（Muse / Hermes 等）で試す — テストモード
+
+Unit IR 未接続でも、エージェントの操作フローを一通り試せる **テストモード**を用意しています。
+M5Stack に `m5stack-core16m-test`（`M5IR_FAKE_IR_BACKEND=1`）を書き込むと、
+`ir.backend` が `fake` になり、学習・テスト送信・登録・送信・削除がすべて成功します
+（実際の赤外線は出ません）。
+
+```bash
+# テストモードへ切り替え
+tools/flash.sh m5stack-core16m-test
+
+# 本番（スタブ）に戻す
+tools/flash.sh m5stack-core16m
+
+# Unit IR 接続後（実機 IR）
+tools/flash.sh m5stack-core16m-ir
+```
+
+エージェントに渡す設定:
+
+```bash
+export M5IR_BASE_URL="https://m5stack-llm-ir-relay.ibahoku-m5ir.workers.dev"
+export M5IR_API_KEY="$(grep '^M5IR_API_KEY=' .env | cut -d= -f2-)"
+```
+
+* スキル: [`skill/SKILL.md`](skill/SKILL.md) をエージェントのスキル（Agent Skills 形式:
+  YAML frontmatter `name` / `description`）として登録、またはシステムプロンプトに読み込ませる
+* テストモードでは `ir.backend="fake"` のため、スキルは「実機が反応した」と報告せず、
+  「テスト用バックエンドで API 動作を確認した」と扱います
+* 家電登録の流れ: `GET /api/health` → `POST /api/ir/learn` → `POST /api/ir/test`
+  → `POST /api/devices/{id}/actions` → `POST /api/ir/send`
+
 ## 宅外アクセス（オプション）
 
 3 方式をサポートしています。エージェントから見た API パスと JSON は完全に同一です。

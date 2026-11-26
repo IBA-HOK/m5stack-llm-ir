@@ -115,6 +115,8 @@ cd firmware
 | `m5stack-atoms3` | M5Stack AtomS3 | スタブ IR |
 | `m5stack-core16m` | M5Stack Core（初代 Basic/Gray, 16MB） | スタブ IR（実機で確認済み） |
 | `m5stack-core16m-test` | 同上 | **API ライフサイクル試験用**（合成 IR バックエンド。本番使用禁止） |
+
+> 実機は `m5stack-core16m`（Unit IR スタブ + Cloudflare リレー有効）で稼働確認済みです。
 | `m5stack-cores3-ir` など `-ir` 付き | 各ボード | **Unit IR 接続後**（IR 実機動作） |
 
 書き込みポートは自動検出されます。検出されない場合は `-t upload --upload-port /dev/ttyACM0`
@@ -270,6 +272,29 @@ https://iba-hok.github.io/m5stack-llm-ir/
 3. 家電一覧の取得、アクション送信、マクロ（`steps`）送信、学習〜登録（Unit IR 接続時）が可能
 
 CORS は Worker 側で許可済みです（`OPTIONS` プリフライト + `Access-Control-Allow-Origin: *`）。
+
+### 外部アクセス確認（実測）
+
+家庭内 LAN の外にある LLM エージェントを想定し、Cloudflare Worker の公開 URL 経由で
+M5Stack の API に到達できることを確認済みです。
+
+```bash
+WORKER=https://m5stack-llm-ir-relay.ibahoku-m5ir.workers.dev
+
+curl -s $WORKER/health
+# {"ok":true,"worker":true,"device_online":true}       <- M5Stack が WSS で接続中
+
+curl -s -H "Authorization: Bearer $M5IR_API_KEY" $WORKER/api/health
+# M5Stack のヘルス JSON（relay.enabled=true / relay.connected=true）
+
+curl -s -o /dev/null -w "%{http_code}\n" $WORKER/api/devices
+# 401（API キーなし）
+```
+
+* M5Stack は Wi-Fi 接続後に `wss://<worker>/ws/device` へ外向き接続し、
+  Cloudflare 側の Durable Object が単一ソケットを保持します。
+* 実機は NTP で時刻同期してから WSS 接続します（Cloudflare の TLS 証明書検証のため）。
+* ブラウザ（GitHub Pages）からのクロスオリジン呼び出しも CORS プリフライト込みで確認済み。
 
 ## 宅外アクセス（オプション）
 

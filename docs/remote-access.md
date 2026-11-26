@@ -48,6 +48,8 @@ DEVICE_TOKEN=M5Stack専用のトークン
 
 書き込み後、LCD に `Relay: ON`（接続済み）が表示され、`GET /api/health` の
 `relay.enabled` / `relay.connected` が `true` になります。
+ファームウェアは Wi-Fi 接続後に NTP で時刻同期してから WSS 接続します
+（Cloudflare の TLS 証明書検証を正しく行うため）。
 
 ### 1.3 接続の流れ
 

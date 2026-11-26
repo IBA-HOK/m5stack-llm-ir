@@ -10,6 +10,7 @@
 #include <ESPmDNS.h>
 #include <M5Unified.h>
 #include <WiFi.h>
+#include <time.h>
 
 #include "config.h"
 #include "http_server.h"
@@ -23,8 +24,27 @@ namespace {
 
 bool s_mdnsStarted = false;
 bool s_httpStarted = false;
+bool s_clockSynced = false;
 uint32_t s_lastWifiCheckMs = 0;
 uint32_t s_nextWifiReconnectMs = 0;
+
+// ESP32 needs a correct wall clock before validating TLS certificates
+// (Cloudflare Workers certificates are only valid for a limited period).
+void syncClock() {
+  if (s_clockSynced) return;
+  configTime(0, 0, "ntp.nict.jp", "time.cloudflare.com", "pool.ntp.org");
+  const uint32_t startedAt = millis();
+  while (millis() - startedAt < 8000) {
+    const time_t now = time(nullptr);
+    if (now > 1700000000) {  // any sane date after 2023
+      s_clockSynced = true;
+      Serial.printf("[net] NTP time synced: %s", ctime(&now));
+      return;
+    }
+    delay(100);
+  }
+  Serial.println("[net] NTP sync timed out (TLS may fail)");
+}
 
 void startMdns() {
   if (s_mdnsStarted) return;
@@ -78,6 +98,7 @@ void maintainWifi(uint32_t now) {
   s_lastWifiCheckMs = now;
 
   if (WiFi.status() == WL_CONNECTED) {
+    if (!s_clockSynced) syncClock();
     startMdns();
     if (appstate::state() == RunState::Error) {
       appstate::setState(RunState::Idle);
@@ -136,6 +157,7 @@ void setup() {
   const bool wifiOk = connectWifi(20000);
   logNetworkState();
   if (wifiOk) {
+    syncClock();
     startMdns();
     appstate::setState(RunState::Idle);
     appstate::setStatusMessage("ready");
@@ -152,9 +174,9 @@ void setup() {
 
   relayws::begin();
 
-  Serial.printf("[boot] devices=%u ir_ready=%d http=%d relay=%d\n",
+  Serial.printf("[boot] devices=%u ir_ready=%d http=%d relay=%d free_heap=%u\n",
                 static_cast<unsigned>(appstate::deviceCount()), irengine::hardwareReady(),
-                s_httpStarted, relayws::enabled());
+                s_httpStarted, relayws::enabled(), static_cast<unsigned>(ESP.getFreeHeap()));
 }
 
 void loop() {

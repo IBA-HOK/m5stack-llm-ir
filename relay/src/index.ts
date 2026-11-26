@@ -164,6 +164,12 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
+    // WebSocket upgrade responses carry a `webSocket` handle and must be
+    // returned untouched: rebuilding them (e.g. to add CORS headers) loses the
+    // handle and makes the Workers runtime answer 500.
+    if (new URL(request.url).pathname === DEVICE_WS_PATH) {
+      return handleDeviceWebSocket(request, env);
+    }
     const response = await handleWorkerRequest(request, env);
     return withCors(response);
   },
@@ -377,6 +383,7 @@ export class Relay implements DurableObject {
    */
   private handleDeviceConnection(): Response {
     const previousSockets = this.ctx.getWebSockets();
+    console.log(`[relay-do] device connect: previous=${previousSockets.length}`);
     if (previousSockets.length > 0) {
       this.rejectAllPending(
         "DEVICE_OFFLINE",
@@ -467,6 +474,7 @@ export class Relay implements DurableObject {
     _reason: string,
     _wasClean: boolean,
   ): void {
+    console.log(`[relay-do] device close: code=${_code} reason=${_reason} open=${this.getOpenDeviceSockets().length}`);
     this.handleDeviceSocketLoss(ws);
   }
 

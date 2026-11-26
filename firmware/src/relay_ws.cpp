@@ -144,10 +144,14 @@ void onWebSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
       appstate::setRelayStatus(true, true);
       break;
     case WStype_DISCONNECTED:
+      Serial.printf("[relay] disconnected (code=%u reason=%s)\n",
+                    static_cast<unsigned>(length),
+                    payload != nullptr ? reinterpret_cast<const char*>(payload) : "");
       scheduleReconnect();
       break;
     case WStype_ERROR:
-      Serial.println("[relay] socket error");
+      Serial.printf("[relay] socket error (len=%u): %s\n", static_cast<unsigned>(length),
+                    payload != nullptr ? reinterpret_cast<const char*>(payload) : "");
       scheduleReconnect();
       break;
     case WStype_TEXT:
@@ -277,13 +281,17 @@ bool begin() {
     appstate::setRelayStatus(false, false);
     return false;
   }
-  if (xTaskCreate(workerTask, "m5ir_relay", 16384, nullptr, tskIDLE_PRIORITY + 2, nullptr) != pdPASS) {
+  if (xTaskCreate(workerTask, "m5ir_relay", 12288, nullptr, tskIDLE_PRIORITY + 2, nullptr) != pdPASS) {
     Serial.println("[relay] could not start worker task");
     appstate::setRelayStatus(false, false);
     return false;
   }
 
-  s_extraHeaders = String("Authorization: Bearer ") + DEVICE_TOKEN + "\r\n";
+  // The library appends its own CRLF + headers after this string, so it must
+  // NOT end with CRLF (a trailing CRLF would terminate the HTTP header block
+  // early and the following "User-Agent" line would be sent as a WebSocket
+  // frame, making Cloudflare close the socket with 1002 protocol error).
+  s_extraHeaders = String("Authorization: Bearer ") + DEVICE_TOKEN;
   s_ws.onEvent(onWebSocketEvent);
   s_ws.setExtraHeaders(s_extraHeaders.c_str());
   s_ws.setReconnectInterval(0);  // bespoke exponential backoff below

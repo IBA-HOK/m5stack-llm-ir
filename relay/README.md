@@ -183,3 +183,26 @@ relay/
 └── test/
     └── integration.mjs    # ローカル統合テスト（ws クライアント）
 ```
+
+## トラブルシューティング
+
+### M5Stack が `device_online: false` のまま
+
+1. ファームウェアの `.env` に `RELAY_WS_URL`（`wss://<worker>/ws/device`）と
+   `DEVICE_TOKEN` が入っているか確認（Worker の `DEVICE_TOKEN` と一致させる）。
+2. シリアルログ（115200 baud）で `[relay] connected` が出るか確認。
+3. デバイスは WSS 接続前に NTP で時刻同期します。NTP が通らないネットワークでは
+   TLS が失敗することがあります。
+4. 管理画面の `wrangler tail` で Worker / Durable Object のログを確認。
+
+### WebSocket が 1002 (protocol error) で即切断される
+
+ESP32 側の `setExtraHeaders()` に渡す文字列の末尾へ `\r\n` を付けると、
+HTTP ヘッダーブロックが早期終了し、後続のヘッダー行が WebSocket フレームとして
+送信されてしまいます（Cloudflare は 1002 で切断）。末尾 CRLF は付けないでください。
+本リポジトリの `firmware/src/relay_ws.cpp` は修正済みです。
+
+### WebSocket アップグレードが 500 になる
+
+Worker が 101 レスポンスを再構築すると `webSocket` ハンドルが失われ 500 になります。
+本リポジトリの Worker は `/ws/device` だけ CORS ラッパーを通さず返却しています。

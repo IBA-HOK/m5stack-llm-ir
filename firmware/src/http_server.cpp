@@ -191,9 +191,12 @@ esp_err_t apiHandler(httpd_req_t* req) {
 
   job->asyncReq = asyncReq;
   if (xTaskCreate(apiTask, "m5ir_api", M5IR_API_TASK_STACK, job, tskIDLE_PRIORITY + 2, nullptr) != pdPASS) {
-    sendError(asyncReq, 500, "INTERNAL_ERROR", "could not spawn request handler");
-    httpd_req_async_handler_complete(asyncReq);
+    // Low-memory fallback: handle the request inline on the httpd task.
+    Serial.println("[http] task spawn failed, handling inline");
+    const ApiResponse response = api::handle(job->request);
     delete job;
+    sendJson(asyncReq, response.status, response.body);
+    httpd_req_async_handler_complete(asyncReq);
   }
   return ESP_OK;
 }

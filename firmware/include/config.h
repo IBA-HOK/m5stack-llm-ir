@@ -74,7 +74,7 @@
 #define M5IR_SEND_MAX_DELAY_MS 5000UL
 #define M5IR_MAX_HTTP_BODY 8192
 #define M5IR_HTTP_STACK_SIZE 10240
-#define M5IR_API_TASK_STACK 12288
+#define M5IR_API_TASK_STACK 9216
 
 // Captured signals kept in RAM before they are persisted. The spec keeps the
 // latest 1..3 captures for 10 minutes or until reboot.

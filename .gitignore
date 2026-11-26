@@ -1,0 +1,32 @@
+# Local Python tooling / PlatformIO
+.venv/
+.pio/
+*.pyc
+__pycache__/
+
+# Firmware secrets (managed by firmware/extra_script.py at build time)
+.env
+!.env.example
+firmware/include/secrets_generated.h
+
+# Firmware build output
+firmware/.pio/
+firmware/.vscode/
+firmware/build/
+compile_commands.json
+
+# Relay (Cloudflare Workers)
+relay/node_modules/
+relay/.wrangler/
+relay/.dev.vars
+relay/dist/
+relay/worker-configuration.d.ts
+
+# Spec download artifacts (raw HTML from the shared Gemini page)
+spec/raw/
+spec/hw/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp

@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M5Stack IR Remote — Test Controller</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #30363d;
+    --fg: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --err: #f85149;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.5;
+  }
+  header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: baseline;
+  }
+  header h1 { font-size: 18px; margin: 0; color: var(--accent); }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 20px 24px 60px;
+    display: grid;
+    gap: 16px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .card h2 {
+    font-size: 14px;
+    margin: 0 0 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 240px; min-width: 0; }
+  label { font-size: 12px; color: var(--muted); }
+  input, textarea, button, select {
+    font: inherit;
+    color: var(--fg);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type="password"] { font-family: var(--mono); }
+  textarea { font-family: var(--mono); font-size: 12px; min-height: 90px; resize: vertical; width: 100%; }
+  button {
+    cursor: pointer;
+    background: #21262d;
+    transition: background .12s ease;
+    white-space: nowrap;
+  }
+  button:hover:not(:disabled) { background: #30363d; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: #1f6feb; border-color: #1f6feb; }
+  button.primary:hover:not(:disabled) { background: #388bfd; }
+  button.danger { border-color: #8b2f2a; color: #ffb3ad; }
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+  }
+  .stat {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .stat .k { font-size: 11px; color: var(--muted); }
+  .stat .v { font-size: 15px; font-weight: 600; word-break: break-word; }
+  .pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+  }
+  .pill.ok { color: var(--ok); border-color: #1f6f33; }
+  .pill.warn { color: var(--warn); border-color: #6b4e10; }
+  .pill.err { color: var(--err); border-color: #6b1f1b; }
+  .devices { display: grid; gap: 10px; }
+  .device {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .device .name { font-weight: 600; }
+  .device .id { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .actions button { padding: 5px 10px; font-size: 13px; }
+  #log {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: #0b0f14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 260px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .hint { color: var(--muted); font-size: 12px; }
+  .warnbox {
+    border: 1px solid #6b4e10;
+    background: #2a2008;
+    color: #f3d48a;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); padding: 1px 5px; border-radius: 5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>M5Stack IR Remote — Test Controller</h1>
+  <p>GitHub Pages 上の静的テスト GUI。接続先 URL と API キーは手動で入力してください（ブラウザの localStorage に保存）。</p>
+</header>
+
+<main>
+  <!-- Connection -->
+  <section class="card">
+    <h2>Connection</h2>
+    <div class="row">
+      <div class="field" style="flex: 2 1 380px;">
+        <label for="baseUrl">Base URL（Cloudflare Worker または ローカル IP）</label>
+        <input id="baseUrl" type="url" placeholder="https://m5stack-llm-ir-relay.<subdomain>.workers.dev" autocomplete="off">
+      </div>
+      <div class="field" style="flex: 2 1 320px;">
+        <label for="apiKey">API Key（Authorization: Bearer）</label>
+        <input id="apiKey" type="password" placeholder="M5IR_API_KEY" autocomplete="off">
+      </div>
+      <div class="inline">
+        <button id="saveBtn">保存</button>
+        <button id="connectBtn" class="primary">接続テスト</button>
+        <button id="clearBtn" class="danger">保存情報を消去</button>
+      </div>
+    </div>
+    <p class="hint" style="margin:10px 0 0;">
+      例: <code>https://m5stack-llm-ir-relay.ibahoku-m5ir.workers.dev</code> または <code>http://m5ir.local</code>。
+      Worker 経由の場合は Worker の <code>API_KEY</code>、ローカル直結なら <code>.env</code> の <code>M5IR_API_KEY</code> を入力します。
+    </p>
+    <p class="warnbox">このページはテスト用です。API キーはブラウザの localStorage に平文で保存されます。共用 PC では使用しないでください。</p>
+  </section>
+
+  <!-- Status -->
+  <section class="card">
+    <h2>Device status <span id="connPill" class="pill">未接続</span></h2>
+    <div class="status-grid" id="stats">
+      <div class="stat"><div class="k">state</div><div class="v" data-k="state">—</div></div>
+      <div class="stat"><div class="k">Wi-Fi</div><div class="v" data-k="wifi">—</div></div>
+      <div class="stat"><div class="k">IR backend</div><div class="v" data-k="ir">—</div></div>
+      <div class="stat"><div class="k">Relay</div><div class="v" data-k="relay">—</div></div>
+      <div class="stat"><div class="k">devices</div><div class="v" data-k="devices">—</div></div>
+      <div class="stat"><div class="k">reset / heap</div><div class="v" data-k="diag">—</div></div>
+    </div>
+    <div class="inline" style="margin-top:12px;">
+      <button id="refreshBtn" class="primary">状態を更新</button>
+      <button id="healthBtn">生の /api/health</button>
+      <span class="hint" id="lastUpdated"></span>
+    </div>
+  </section>
+
+  <div class="split">
+    <!-- Devices -->
+    <section class="card">
+      <h2>Devices / 操作</h2>
+      <div class="inline" style="margin-bottom:10px;">
+        <button id="devicesBtn">一覧を取得</button>
+        <span class="hint" id="deviceCount"></span>
+      </div>
+      <div class="devices" id="devices"><p class="hint">「一覧を取得」を押してください。</p></div>
+    </section>
+
+    <!-- Learn / save -->
+    <section class="card">
+      <h2>学習・登録（Unit IR 接続時のみ）</h2>
+      <div class="row">
+        <div class="field" style="flex:1 1 120px;">
+          <label for="learnTimeout">timeout_ms</label>
+          <input id="learnTimeout" type="number" min="500" max="30000" step="500" value="10000">
+        </div>
+        <div class="inline">
+          <button id="learnBtn" class="primary">学習開始</button>
+          <button id="testBtn" disabled>テスト送信</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <div class="field"><label for="deviceId">device_id</label><input id="deviceId" placeholder="living_tv" autocomplete="off"></div>
+        <div class="field"><label for="deviceLabel">label</label><input id="deviceLabel" placeholder="リビングのテレビ" autocomplete="off"></div>
+        <div class="field"><label for="actionName">action</label><input id="actionName" placeholder="power" autocomplete="off"></div>
+        <div class="inline"><button id="saveActionBtn" disabled>アクション保存</button></div>
+      </div>
+      <p class="hint" id="captureInfo" style="margin:10px 0 0;">capture_id: —</p>
+      <p class="hint">IR ユニット未接続（<code>ir.backend: stub</code>）の場合、学習は 503 IR_NOT_AVAILABLE になります。</p>
+    </section>
+  </div>
+
+  <!-- Macro -->
+  <section class="card">
+    <h2>送信 / マクロ（steps）</h2>
+    <div class="row">
+      <div class="field"><label for="deviceSel">device</label><select id="deviceSel"><option value="">（一覧取得後に選択）</option></select></div>
+      <div class="field"><label for="actionSel">action</label><select id="actionSel"><option value="">—</option></select></div>
+      <div class="inline"><button id="sendOneBtn" class="primary">単発送信</button></div>
+    </div>
+    <label for="stepsJson" style="display:block;margin-top:12px;">バッチ steps（JSON）</label>
+    <textarea id="stepsJson" spellcheck="false">[
+  { "device": "living_tv", "action": "power" },
+  { "delay_ms": 400 },
+  { "device": "living_light", "action": "off" }
+]</textarea>
+    <div class="inline" style="margin-top:8px;">
+      <button id="sendBatchBtn" class="primary">バッチ送信</button>
+      <button id="clearLogBtn">ログ消去</button>
+    </div>
+  </section>
+
+  <!-- Log -->
+  <section class="card">
+    <h2>Log</h2>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const storeKey = { url: "m5ir.test.baseUrl", key: "m5ir.test.apiKey" };
+  let captureId = null;
+
+  const state = {
+    baseUrl: "",
+    apiKey: "",
+  };
+
+  // ---------------------------------------------------------------------
+  // Logging / helpers
+  // ---------------------------------------------------------------------
+  function log(message, kind) {
+    const el = $("log");
+    const time = new Date().toLocaleTimeString();
+    const line = `[${time}] ${message}`;
+    el.textContent += line + "\n";
+    el.scrollTop = el.scrollHeight;
+    if (kind === "error") el.textContent = el.textContent; // no-op, keeps lint quiet
+  }
+
+  function pill(el, text, cls) {
+    el.textContent = text;
+    el.className = "pill " + (cls || "");
+  }
+
+  function normalizeBaseUrl(value) {
+    return value.trim().replace(/\/+$/, "");
+  }
+
+  async function api(method, path, body) {
+    if (!state.baseUrl) throw new Error("Base URL が未入力です");
+    const headers = { Accept: "application/json" };
+    if (state.apiKey && path !== "/health") headers.Authorization = "Bearer " + state.apiKey;
+    let payload = null;
+    if (body !== undefined && body !== null) {
+      headers["Content-Type"] = "application/json";
+      payload = JSON.stringify(body);
+    }
+    const response = await fetch(state.baseUrl + path, {
+      method,
+      headers,
+      body: payload,
+      cache: "no-store",
+    });
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    if (!response.ok) {
+      const err = new Error(`HTTP ${response.status} ${path}`);
+      err.status = response.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  function errorText(error) {
+    if (!error) return "unknown error";
+    if (error.status) {
+      const code = error.data && error.data.error && error.data.error.code;
+      const message = error.data && error.data.error && error.data.error.message;
+      return `HTTP ${error.status}${code ? " " + code : ""}${message ? " - " + message : ""}`;
+    }
+    return error.message || String(error);
+  }
+
+  // ---------------------------------------------------------------------
+  // Connection settings (manual input; saved in localStorage)
+  // ---------------------------------------------------------------------
+  function loadSettings() {
+    state.baseUrl = localStorage.getItem(storeKey.url) || "";
+    state.apiKey = localStorage.getItem(storeKey.key) || "";
+    $("baseUrl").value = state.baseUrl;
+    $("apiKey").value = state.apiKey;
+  }
+
+  function saveSettings() {
+    state.baseUrl = normalizeBaseUrl($("baseUrl").value);
+    state.apiKey = $("apiKey").value.trim();
+    $("baseUrl").value = state.baseUrl;
+    localStorage.setItem(storeKey.url, state.baseUrl);
+    localStorage.setItem(storeKey.key, state.apiKey);
+    log("接続設定を保存しました: " + (state.baseUrl || "(URL 未入力)"));
+  }
+
+  // ---------------------------------------------------------------------
+  // Health / status
+  // ---------------------------------------------------------------------
+  function renderHealth(health) {
+    const wifi = health.wifi || {};
+    const ir = health.ir || {};
+    const relay = health.relay || {};
+    const set = (k, v) => {
+      const el = document.querySelector(`[data-k="${k}"]`);
+      if (el) el.textContent = v;
+    };
+    set("state", health.state || "—");
+    set("wifi", wifi.connected ? `${wifi.ip || "connected"} (${wifi.rssi ?? "?"} dBm)` : "disconnected");
+    set("ir", `${ir.hardware ? "ready" : "not connected"}${ir.backend ? " / " + ir.backend : ""}`);
+    set("relay", relay.enabled ? (relay.connected ? "connected" : "disconnected") : "disabled");
+    set("devices", String(health.devices ?? 0));
+    set("diag", `${health.reset_reason || "?"} / ${health.free_heap ? Math.round(health.free_heap / 1024) + " KB" : "?"}`);
+    $("lastUpdated").textContent = "updated: " + new Date().toLocaleTimeString();
+    pill($("connPill"), "接続OK", "ok");
+    return ir;
+  }
+
+  async function connectTest() {
+    saveSettings();
+    pill($("connPill"), "接続中…", "warn");
+    try {
+      if (state.baseUrl.includes("workers.dev")) {
+        const relayHealth = await api("GET", "/health");
+        log("Worker /health: " + JSON.stringify(relayHealth));
+        if (!relayHealth.device_online) log("注意: Worker から見て M5Stack は未接続です（DEVICE_OFFLINE になります）");
+      }
+      const health = await api("GET", "/api/health");
+      log("GET /api/health: ok");
+      renderHealth(health);
+      return health;
+    } catch (error) {
+      pill($("connPill"), "接続失敗", "err");
+      log("接続テスト失敗: " + errorText(error), "error");
+      throw error;
+    }
+  }
+
+  async function refreshHealth() {
+    try {
+      const health = await api("GET", "/api/health");
+      const ir = renderHealth(health);
+      log("状態を更新: state=" + health.state + ", ir=" + (ir.backend || "?"));
+    } catch (error) {
+      pill($("connPill"), "接続失敗", "err");
+      log("状態取得失敗: " + errorText(error), "error");
+    }
+  }
+
+  async function showRawHealth() {
+    try {
+      const health = await api("GET", "/api/health");
+      log("raw /api/health:\n" + JSON.stringify(health, null, 2));
+    } catch (error) {
+      log("raw /api/health 失敗: " + errorText(error), "error");
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Devices
+  // ---------------------------------------------------------------------
+  function renderDevices(devices) {
+    const container = $("devices");
+    const list = Object.entries(devices || {});
+    $("deviceCount").textContent = `${list.length} 件`;
+    if (list.length === 0) {
+      container.innerHTML = '<p class="hint">登録家電はありません。</p>';
+      $("deviceSel").innerHTML = '<option value="">（登録なし）</option>';
+      $("actionSel").innerHTML = '<option value="">—</option>';
+      return;
+    }
+    container.innerHTML = "";
+    for (const [deviceId, device] of list) {
+      const row = document.createElement("div");
+      row.className = "device";
+      const info = document.createElement("div");
+      info.innerHTML = `<div class="name">${escapeHtml(device.label || deviceId)}</div><div class="id">${escapeHtml(deviceId)}</div>`;
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      for (const action of device.actions || []) {
+        const button = document.createElement("button");
+        button.textContent = action;
+        button.addEventListener("click", () => sendAction(deviceId, action));
+        actions.appendChild(button);
+      }
+      row.appendChild(info);
+      row.appendChild(actions);
+      container.appendChild(row);
+    }
+    const select = $("deviceSel");
+    select.innerHTML = '<option value="">選択してください</option>';
+    for (const [deviceId, device] of list) {
+      select.appendChild(new Option(`${device.label || deviceId} (${deviceId})`, deviceId));
+    }
+    updateActionOptions(list);
+  }
+
+  function updateActionOptions(list) {
+    const deviceId = $("deviceSel").value;
+    const actionSelect = $("actionSel");
+    actionSelect.innerHTML = '<option value="">—</option>';
+    const found = list.find(([id]) => id === deviceId);
+    if (!found) return;
+    for (const action of found[1].actions || []) actionSelect.appendChild(new Option(action, action));
+  }
+
+  async function loadDevices() {
+    try {
+      const data = await api("GET", "/api/devices");
+      renderDevices(data.devices || {});
+      log("GET /api/devices: " + Object.keys(data.devices || {}).length + " 件");
+    } catch (error) {
+      log("一覧取得失敗: " + errorText(error), "error");
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // ---------------------------------------------------------------------
+  // Send / learn / save
+  // ---------------------------------------------------------------------
+  async function sendAction(device, action) {
+    try {
+      const result = await api("POST", "/api/ir/send", { device, action });
+      log(`送信 OK: ${device}/${action} (executed_steps=${result.executed_steps})`);
+      flashButton(`送信: ${action}`);
+    } catch (error) {
+      log(`送信失敗: ${device}/${action}: ` + errorText(error), "error");
+    }
+  }
+
+  function flashButton(_label) {
+    // placeholder to keep the UI simple; sending is logged above
+  }
+
+  async function sendSingle() {
+    const device = $("deviceSel").value;
+    const action = $("actionSel").value;
+    if (!device || !action) { log("device と action を選択してください", "error"); return; }
+    await sendAction(device, action);
+  }
+
+  async function sendBatch() {
+    let steps;
+    try {
+      steps = JSON.parse($("stepsJson").value);
+    } catch (error) {
+      log("steps JSON が不正です: " + error.message, "error");
+      return;
+    }
+    try {
+      const result = await api("POST", "/api/ir/send", { steps });
+      log(`バッチ送信 OK: executed_steps=${result.executed_steps}`);
+    } catch (error) {
+      log("バッチ送信失敗: " + errorText(error), "error");
+    }
+  }
+
+  async function learn() {
+    const timeout = Number($("learnTimeout").value) || 10000;
+    log(`POST /api/ir/learn (timeout_ms=${timeout}) … リモコンを押してください`);
+    try {
+      const result = await api("POST", "/api/ir/learn", { timeout_ms: timeout });
+      captureId = result.capture_id;
+      $("captureInfo").textContent =
+        `capture_id: ${captureId} / protocol: ${result.protocol} / bits: ${result.bits} / raw_length: ${result.raw_length}`;
+      $("testBtn").disabled = false;
+      $("saveActionBtn").disabled = false;
+      log("学習 OK: " + JSON.stringify(result));
+      refreshHealth();
+    } catch (error) {
+      captureId = null;
+      $("testBtn").disabled = true;
+      $("saveActionBtn").disabled = true;
+      log("学習失敗: " + errorText(error), "error");
+    }
+  }
+
+  async function testCapture() {
+    if (!captureId) return;
+    try {
+      const result = await api("POST", "/api/ir/test", { capture_id: captureId });
+      log("テスト送信 OK: sent=" + result.sent);
+    } catch (error) {
+      log("テスト送信失敗: " + errorText(error), "error");
+    }
+  }
+
+  async function saveAction() {
+    if (!captureId) return;
+    const deviceId = $("deviceId").value.trim();
+    const label = $("deviceLabel").value.trim();
+    const action = $("actionName").value.trim();
+    if (!deviceId || !action) { log("device_id と action は必須です", "error"); return; }
+    const body = { action, capture_id: captureId };
+    if (label) body.label = label;
+    try {
+      const result = await api("POST", `/api/devices/${encodeURIComponent(deviceId)}/actions`, body);
+      log(`保存 OK: ${result.device_id}/${result.action} (${result.stored_format})`);
+      captureId = null;
+      $("testBtn").disabled = true;
+      $("saveActionBtn").disabled = true;
+      $("captureInfo").textContent = "capture_id: —";
+      loadDevices();
+    } catch (error) {
+      log("保存失敗: " + errorText(error), "error");
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Wire up
+  // ---------------------------------------------------------------------
+  function init() {
+    loadSettings();
+    $("saveBtn").addEventListener("click", saveSettings);
+    $("connectBtn").addEventListener("click", () => connectTest().catch(() => {}));
+    $("clearBtn").addEventListener("click", () => {
+      localStorage.removeItem(storeKey.url);
+      localStorage.removeItem(storeKey.key);
+      state.baseUrl = "";
+      state.apiKey = "";
+      $("baseUrl").value = "";
+      $("apiKey").value = "";
+      pill($("connPill"), "未接続", "");
+      log("保存した接続情報を消去しました");
+    });
+    $("refreshBtn").addEventListener("click", refreshHealth);
+    $("healthBtn").addEventListener("click", showRawHealth);
+    $("devicesBtn").addEventListener("click", loadDevices);
+    $("deviceSel").addEventListener("change", () => {
+      api("GET", "/api/devices").then((data) => {
+        updateActionOptions(Object.entries(data.devices || {}));
+      }).catch(() => {});
+    });
+    $("sendOneBtn").addEventListener("click", sendSingle);
+    $("sendBatchBtn").addEventListener("click", sendBatch);
+    $("learnBtn").addEventListener("click", learn);
+    $("testBtn").addEventListener("click", testCapture);
+    $("saveActionBtn").addEventListener("click", saveAction);
+    $("clearLogBtn").addEventListener("click", () => { $("log").textContent = ""; });
+    $("baseUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") connectTest().catch(() => {}); });
+    $("apiKey").addEventListener("keydown", (e) => { if (e.key === "Enter") connectTest().catch(() => {}); });
+
+    log("Test Controller を読み込みました。Base URL と API Key を入力して「接続テスト」を押してください。");
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>

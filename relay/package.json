@@ -1,0 +1,20 @@
+{
+  "name": "m5stack-llm-ir-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Workers + Durable Objects reverse WebSocket tunnel relay for m5stack-llm-ir (optional remote access).",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "node test/integration.mjs",
+    "test:integration": "node test/integration.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261123.1",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.168.0",
+    "ws": "^8.23.0"
+  }
+}

@@ -1,0 +1,30 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "m5stack-llm-ir-relay"
+main = "src/index.ts"
+compatibility_date = "2025-04-07"
+
+# This Worker is a reverse tunnel for the M5Stack IR remote.
+# Public endpoints:
+#   GET  /health       -> no auth, reports Worker status + device presence
+#   GET  /ws/device    -> WebSocket upgrade for the M5Stack (Authorization: Bearer <DEVICE_TOKEN>)
+#   *    /api/*        -> relayed to the M5Stack (Authorization: Bearer <API_KEY>)
+#
+# Secrets are NEVER stored in this file. Register them with:
+#   npx wrangler secret put API_KEY
+#   npx wrangler secret put DEVICE_TOKEN
+#
+# Local development (`npx wrangler dev --local --port 8787`) reads the same
+# values from relay/.dev.vars (gitignored). Create it manually, e.g.:
+#   API_KEY=test-api-key
+#   DEVICE_TOKEN=test-device-token
+
+[observability]
+enabled = true
+
+[[durable_objects.bindings]]
+name = "RELAY_DO"
+class_name = "Relay"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Relay"]

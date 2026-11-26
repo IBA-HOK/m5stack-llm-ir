@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Wrangler local state / build output
+.wrangler/
+dist/
+
+# Local secrets (create relay/.dev.vars for local development; never commit it)
+.dev.vars
+.dev.vars.*
+
+# Logs
+*.log
+npm-debug.log*
+.login_url
+.login.log
+.login_url
+.login.log
+.cfsub

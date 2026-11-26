@@ -30,3 +30,6 @@ spec/hw/
 .DS_Store
 Thumbs.db
 *.swp
+
+# Local browser E2E harness
+.e2e/

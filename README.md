@@ -167,6 +167,15 @@ USB シリアル（CH9102F, `/dev/ttyACM0`）経由で `m5stack-core16m` を書�
 - `POST /api/ir/learn` → `503 IR_NOT_AVAILABLE`（スタブ IR の想定どおり）
 - `python3 tools/smoke_test.py --base-url http://m5ir.local --api-key ...` → **ALL CHECKS PASSED**
 
+### クラウド（Cloudflare + GitHub Pages）の確認
+
+* `wrangler deploy` → `https://m5stack-llm-ir-relay.ibahoku-m5ir.workers.dev`
+* `GET <worker>/health` → `{"ok":true,"worker":true,"device_online":true}`
+* `GET <worker>/api/health`（Bearer 認証）→ M5Stack のヘルス JSON が返却
+* 認証なし `/api/*` → 401、CORS プリフライト → 204 + `Access-Control-Allow-Origin: *`
+* GitHub Actions で Pages デプロイ成功 → `https://iba-hok.github.io/m5stack-llm-ir/`
+* Playwright による GUI E2E: **PASS**（接続・家電一覧・生 health、ブラウザエラー 0）
+
 起動ログの例:
 
 ```
@@ -272,6 +281,12 @@ https://iba-hok.github.io/m5stack-llm-ir/
 3. 家電一覧の取得、アクション送信、マクロ（`steps`）送信、学習〜登録（Unit IR 接続時）が可能
 
 CORS は Worker 側で許可済みです（`OPTIONS` プリフライト + `Access-Control-Allow-Origin: *`）。
+
+![GitHub Pages テスト GUI](docs/images/gui.png)
+
+ヘッドレス Chromium（Playwright）で「GitHub Pages → Cloudflare Worker → M5Stack」の
+実通信を E2E 確認済みです（接続テスト・家電一覧取得・生 `/api/health` 取得、ブラウザエラーなし）。
+スクリーンショットは LAN 内 IP を伏字化しています。
 
 ### 外部アクセス確認（実測）
 

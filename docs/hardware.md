@@ -35,6 +35,37 @@ M5Stack 公式ドキュメント（Unit IR）の PinMap:
 > **注意**: Unit IR は Grove の 5V と GND を使います。CoreS3 / Core2 / M5StickC Plus2 /
 > AtomS3 の Grove ポートはいずれも 5V を供給するので、そのまま接続できます。
 
+### 赤い Grove（PORT.A）で使う（実験的サポート）
+
+初代 Core の赤い Grove PORT.A は通常 I2C（G21/G22）ですが、ファームウェア側で内部 I2C を
+解放すれば Unit IR 用の GPIO として使えます（**実験的**）。配線は Grove ケーブルをそのまま
+PORT.A へ接続するだけです。
+
+| PORT.A (赤) | 信号 |
+| --- | --- |
+| 黒 | GND |
+| 赤 | 5V |
+| 黄（内側） | **IR_TX = G21** |
+| 白（外側） | **IR_RX = G22** |
+
+```bash
+# PORT.A 版（内蔵 I2C を解放して G21/G22 を IR に使用）
+tools/flash.sh m5stack-core16m-porta-ir
+```
+
+* 起動ログに `[ir] internal I2C released; PORT.A G21/G22 are free for IR` が出れば成功です。
+* **実機での結果（2026-11-27, U002）**: 送信 LED は G21 で点滅を確認。受信は G22 で
+  リモコン信号を検出できましたが、Port A は I2C 用プルアップが残るため**受信波形が
+  ノイズ混じりになりやすく**、AC の生波形再送は不安定でした。安定運用には M5-Bus の
+  G26/G36（Port B 相当）への配線を推奨します。
+* Unit IR の送信 LED は回路図上 R1=150Ω で約 25mA 駆動（一般的なリモコンは 100mA 超）。
+  「フルパワー」にするには R1 の交換（例: 47Ω で約 75mA）や外部 IR LED ドライバが必要です。
+  ソフトウェア（IRsend の duty 50%・2 回送信）だけでは電流は増やせません。
+* 内蔵 I2C（IP5306 のバッテリー情報など）はこのビルドでは使えません（USB 給電前提）。
+* PORT.A には I2C 用のプルアップ抵抗が残るため、信号品質は Port B / M5-Bus 接続より
+  有利とは限りません。学習・送信の実機確認を必ず行ってください。
+* 仕様書 3.2 は Port A の直接接続を想定していません（本対応は実験的な拡張です）。
+
 ### 初代 M5Stack Core（Basic / Gray）への接続
 
 初代 Core の本体 Grove は **赤い PORT.A（I2C: G21/G22）のみ** で、黒い PORT.B は

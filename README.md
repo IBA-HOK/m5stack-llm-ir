@@ -115,6 +115,7 @@ cd firmware
 | `m5stack-atoms3` | M5Stack AtomS3 | スタブ IR |
 | `m5stack-core16m` | M5Stack Core（初代 Basic/Gray, 16MB） | スタブ IR（実機で確認済み） |
 | `m5stack-core16m-test` | 同上 | **API ライフサイクル試験用**（合成 IR バックエンド。本番使用禁止） |
+| `m5stack-core16m-porta-ir` | 同上 | **赤い Grove (PORT.A: G21/G22)** に Unit IR を接続する実験用（内蔵 I2C を解放） |
 
 > 実機は `m5stack-core16m`（Unit IR スタブ + Cloudflare リレー有効）で稼働確認済みです。
 | `m5stack-cores3-ir` など `-ir` 付き | 各ボード | **Unit IR 接続後**（IR 実機動作） |
@@ -313,6 +314,23 @@ curl -s -o /dev/null -w "%{http_code}\n" $WORKER/api/devices
   Cloudflare 側の Durable Object が単一ソケットを保持します。
 * 実機は NTP で時刻同期してから WSS 接続します（Cloudflare の TLS 証明書検証のため）。
 * ブラウザ（GitHub Pages）からのクロスオリジン呼び出しも CORS プリフライト込みで確認済み。
+
+## IR エンジンの現行実装（v0.1.1）
+
+IR 受信・送信は **IRremoteESP8266 本体の網羅的なデコーダ／送信ディスパッチャ**を
+そのまま利用します（個別プロトコルの独自実装は廃止）。
+
+* 受信: `IRrecv::decode()` を `max_skip=10` で呼び、PORT.A の先頭ノイズを
+  ライブラリ側にスキップさせる（`IRrecvDumpV2` 準拠: 50ms タイムアウト + save_buffer）
+* 送信: `IRsend::send(decode_type_t, state/value, ...)` で全対応プロトコルを送出
+  （A/C は 14〜53 バイトの state を使い、チェックサム・タイミングを再生成）
+* 未知プロトコルのみ raw µs 配列へフォールバック（`resultToRawArray()` と同じ変換、
+  A/C は複数フレームから1フレームを抽出して 3 回連続送信）
+* 誤デコード防止: デコード結果の bit 数と取得長が整合しない場合は raw にフォールバック
+
+> 実機メモ: Unit IR (U002) の送信 LED は回路図上 R1=150Ω で約 25mA 駆動。
+> 至近距離でも反応しない場合は、赤外線透過ケース付きの 7 LED 送信機
+> （Tuya WiFi IR Remote 流用）などへの置き換えが有効です（[spec/SPEC.md](spec/SPEC.md) 付録A.2）。
 
 ## エージェント（Muse / Hermes 等）で試す — テストモード
 

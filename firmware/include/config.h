@@ -40,6 +40,15 @@
 #ifndef M5IR_ENABLE_IR_HW
 #define M5IR_ENABLE_IR_HW 0
 #endif
+#ifndef M5IR_RELEASE_I2C
+#define M5IR_RELEASE_I2C 0
+#endif
+// Development diagnostic: scan G21/G22 for IR-receiver edges instead of
+// starting the normal application. Used to identify the RX pin of a Unit IR
+// connected to the red Grove PORT.A when the documented pin order does not fit.
+#ifndef M5IR_IR_PIN_SCAN
+#define M5IR_IR_PIN_SCAN 0
+#endif
 #ifndef M5IR_FAKE_IR_BACKEND
 #define M5IR_FAKE_IR_BACKEND 0
 #endif

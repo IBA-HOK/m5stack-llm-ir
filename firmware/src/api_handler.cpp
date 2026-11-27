@@ -556,6 +556,31 @@ ApiResponse handle(const ApiRequest& request) {
     return handleHealth();
   }
 
+  // GET /api/diag/last_capture (authenticated diagnostics)
+  if (parts.size() == 3 && parts[1] == "diag" && parts[2] == "last_capture") {
+    if (method != "GET") return methodNotAllowed();
+    String captureId;
+    IrSignal signal;
+    if (!appstate::getLatestCapture(&captureId, &signal)) {
+      return errorResponse(404, "CAPTURE_NOT_FOUND", "no capture is currently buffered");
+    }
+    JsonDocument doc;
+    doc["capture_id"] = captureId;
+    doc["format"] = (signal.format == IrSignal::Format::Protocol) ? "protocol" : "raw";
+    doc["protocol"] = signal.protocol.isEmpty() ? "UNKNOWN" : signal.protocol;
+    doc["bits"] = signal.bits;
+    doc["freq_khz"] = signal.freqKhz;
+    doc["raw_length"] = signal.rawEntries;
+    if (!signal.state.empty()) {
+      JsonArray stateArray = doc["state"].to<JsonArray>();
+      for (const uint8_t value : signal.state) stateArray.add(value);
+    }
+    JsonArray head = doc["raw_head"].to<JsonArray>();
+    const size_t limit = signal.raw.size() < 16 ? signal.raw.size() : 16;
+    for (size_t i = 0; i < limit; ++i) head.add(signal.raw[i]);
+    return okResponse(doc);
+  }
+
   // GET /api/devices
   if (parts.size() == 2 && parts[1] == "devices") {
     if (method != "GET") return methodNotAllowed();

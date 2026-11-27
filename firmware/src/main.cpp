@@ -138,6 +138,35 @@ void setup() {
 
   auto m5Config = M5.config();
   M5.begin(m5Config);
+
+#if M5IR_IR_PIN_SCAN
+  // Diagnostic mode: watch the two PORT.A signal pins and report edges when an
+  // IR remote is pressed. Helps identify which Grove line carries IR_RX.
+  Serial.println("[scan] IR pin scan mode (G21/G22). Press a remote now.");
+  pinMode(21, INPUT_PULLUP);
+  pinMode(22, INPUT_PULLUP);
+  int last21 = digitalRead(21);
+  int last22 = digitalRead(22);
+  uint32_t edges21 = 0;
+  uint32_t edges22 = 0;
+  uint32_t lastPrint = millis();
+  uint32_t window21 = 0;
+  uint32_t window22 = 0;
+  for (;;) {
+    const int a = digitalRead(21);
+    const int b = digitalRead(22);
+    if (a != last21) { ++edges21; ++window21; last21 = a; }
+    if (b != last22) { ++edges22; ++window22; last22 = b; }
+    if (millis() - lastPrint >= 1000) {
+      Serial.printf("[scan] edges G21=%u G22=%u | last-second G21=%u G22=%u | idle %d/%d\n",
+                    static_cast<unsigned>(edges21), static_cast<unsigned>(edges22),
+                    static_cast<unsigned>(window21), static_cast<unsigned>(window22), last21, last22);
+      window21 = 0;
+      window22 = 0;
+      lastPrint = millis();
+    }
+  }
+#endif
   Serial.printf("[boot] display=%dx%d board=%d\n", static_cast<int>(M5.Display.width()),
                 static_cast<int>(M5.Display.height()), static_cast<int>(M5.getBoard()));
 
@@ -150,6 +179,16 @@ void setup() {
     appstate::setStatusMessage("LittleFS mount failed");
   }
   appstate::loadDatabase();
+#if M5IR_RELEASE_I2C
+  // The original M5Stack Core only exposes the red Grove PORT.A (G21/G22),
+  // which M5Unified also uses as its internal I2C bus (IP5306 etc.). Release
+  // the bus so those pins can drive the Unit IR (experimental PORT.A build).
+  if (M5.In_I2C.release()) {
+    Serial.println("[ir] internal I2C released; PORT.A G21/G22 are free for IR");
+  } else {
+    Serial.println("[ir] warning: internal I2C release failed");
+  }
+#endif
   irengine::begin();
 
   appstate::setStatusMessage("connecting to Wi-Fi");

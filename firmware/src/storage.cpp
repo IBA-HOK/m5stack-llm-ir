@@ -52,14 +52,29 @@ bool loadDeviceAction(const JsonObject& actionObj, IrAction* out) {
     const char* codeText = actionObj["code"] | "";
     const uint16_t bits = actionObj["bits"] | 0;
     if (protocol[0] == '\0' || strlen(protocol) >= M5IR_MAX_PROTOCOL_LEN) return false;
+    signal.format = IrSignal::Format::Protocol;
+    signal.protocol = protocol;
+    signal.freqKhz = M5IR_IR_DEFAULT_FREQ_KHZ;
+    signal.state.clear();
+
+    JsonArray stateArray = actionObj["state"].as<JsonArray>();
+    if (!stateArray.isNull() && stateArray.size() > 0) {
+      if (bits == 0 || bits > 512 || stateArray.size() != (bits + 7) / 8) return false;
+      for (JsonVariant value : stateArray) {
+        const int byteValue = value.as<int>();
+        if (byteValue < 0 || byteValue > 255) return false;
+        signal.state.push_back(static_cast<uint8_t>(byteValue));
+      }
+      signal.code = 0;
+      signal.bits = bits;
+      return true;
+    }
+
     if (bits == 0 || bits > 64) return false;
     uint64_t code = 0;
     if (!parseCode(codeText, &code)) return false;
-    signal.format = IrSignal::Format::Protocol;
-    signal.protocol = protocol;
     signal.code = code;
     signal.bits = bits;
-    signal.freqKhz = M5IR_IR_DEFAULT_FREQ_KHZ;
     return true;
   }
 
@@ -181,10 +196,15 @@ bool save(const std::map<String, IrDevice>& devices, String* err) {
       if (signal.format == IrSignal::Format::Protocol) {
         actionObj["format"] = "protocol";
         actionObj["protocol"] = signal.protocol;
-        char hex[24];
-        snprintf(hex, sizeof(hex), "0x%llX", static_cast<unsigned long long>(signal.code));
-        actionObj["code"] = hex;
         actionObj["bits"] = signal.bits;
+        if (!signal.state.empty()) {
+          JsonArray stateArray = actionObj["state"].to<JsonArray>();
+          for (const uint8_t value : signal.state) stateArray.add(value);
+        } else {
+          char hex[24];
+          snprintf(hex, sizeof(hex), "0x%llX", static_cast<unsigned long long>(signal.code));
+          actionObj["code"] = hex;
+        }
       } else {
         actionObj["format"] = "raw";
         actionObj["freq_khz"] = signal.freqKhz;

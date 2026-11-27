@@ -414,6 +414,23 @@ bool getCapture(const String& captureId, IrSignal* out) {
   return false;
 }
 
+bool getLatestCapture(String* captureId, IrSignal* out) {
+  StateLock lock;
+  const uint32_t now = millis();
+  int best = -1;
+  for (int i = 0; i < M5IR_CAPTURE_SLOTS; ++i) {
+    if (!s_captures[i].valid || captureExpired(s_captures[i], now)) continue;
+    if (best < 0 ||
+        static_cast<int32_t>(s_captures[i].storedAtMs - s_captures[best].storedAtMs) > 0) {
+      best = i;
+    }
+  }
+  if (best < 0) return false;
+  if (captureId != nullptr) *captureId = s_captures[best].id;
+  *out = s_captures[best].signal;
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Relay status
 // ---------------------------------------------------------------------------

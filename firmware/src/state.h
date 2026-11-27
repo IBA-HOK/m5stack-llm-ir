@@ -30,6 +30,10 @@ struct IrSignal {
   uint16_t bits = 0;                  // protocol format only
   uint16_t freqKhz = M5IR_IR_DEFAULT_FREQ_KHZ;  // raw format only
   std::vector<uint16_t> raw;          // raw format only (microseconds)
+  // Full protocol state for multi-byte protocols such as Mitsubishi/TCL A/C.
+  // When non-empty, retransmission uses the protocol's native sender instead
+  // of the raw timing fallback.
+  std::vector<uint8_t> state;
   // Number of raw timing entries seen during the capture. Reported by
   // POST /api/ir/learn as `raw_length`; not persisted.
   uint16_t rawEntries = 0;
@@ -106,6 +110,9 @@ bool saveDatabase();
 // Returns the new capture id ("cap_xxxx") or an empty String on failure.
 String storeCapture(const IrSignal& signal);
 bool getCapture(const String& captureId, IrSignal* out);
+
+// Returns the most recent valid capture (diagnostics endpoint).
+bool getLatestCapture(String* captureId, IrSignal* out);
 
 // Drops expired capture entries (called by tick()).
 void cleanupCaptures();

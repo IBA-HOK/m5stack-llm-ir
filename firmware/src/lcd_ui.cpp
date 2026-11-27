@@ -61,10 +61,16 @@ uint16_t stateColor(RunState state) {
   }
 }
 
-void drawLearningCountdown() {
+// While LEARNING the screen shows *what* is being learned plus the remaining
+// seconds, e.g. "LEARN: tv/ch1" / "Press remote! 10s".
+void drawLearningStatus() {
+  String target = appstate::learnTarget();
+  if (target.isEmpty()) target = "(target not specified)";
+  drawLine(6, "LEARN: " + target, kWarn, true);
+
   const uint32_t remainingMs = appstate::learnRemainingMs();
   const uint32_t seconds = (remainingMs + 999) / 1000;
-  drawLine(6, "Press remote! " + String(seconds) + "s", kWarn);
+  drawLine(7, "Press remote! " + String(seconds) + "s", kForeground, true);
 }
 
 }  // namespace
@@ -126,11 +132,13 @@ void loop() {
   drawLine(5, "Devices: " + String(static_cast<unsigned>(appstate::deviceCount())), kForeground);
 
   if (learning) {
-    drawLearningCountdown();
+    drawLearningStatus();
   } else {
     String message = appstate::statusMessage();
     if (message.isEmpty()) message = String(M5IR_HOSTNAME) + ".local";
     drawLine(6, message, kMuted);
+    // Clear the countdown line when leaving LEARNING.
+    drawLine(7, "", kMuted);
   }
 
   display.endWrite();

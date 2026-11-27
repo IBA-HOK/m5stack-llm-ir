@@ -137,6 +137,7 @@ ApiResponse handleHealth() {
   doc["devices"] = static_cast<unsigned>(appstate::deviceCount());
   doc["message"] = appstate::statusMessage();
   doc["learn_remaining_ms"] = appstate::learnRemainingMs();
+  doc["learn_target"] = appstate::learnTarget();
   doc["reset_reason"] = resetReasonName(esp_reset_reason());
   doc["free_heap"] = static_cast<unsigned>(ESP.getFreeHeap());
   return okResponse(doc);
@@ -161,6 +162,32 @@ ApiResponse handleListDevices() {
 // ---------------------------------------------------------------------------
 // POST /api/ir/learn
 // ---------------------------------------------------------------------------
+// Build a short, LCD-safe "device/action" label from the optional learn request
+// fields. Only [a-z0-9_] is accepted so the display cannot be filled with
+// arbitrary text from a remote agent.
+String learnTargetLabel(JsonDocument& body) {
+  if (body.isNull()) return String();
+  String device;
+  String action;
+  if (body["device"].is<const char*>()) {
+    const String raw = body["device"].as<const char*>();
+    for (size_t i = 0; i < raw.length() && device.length() < M5IR_MAX_ID_LEN; ++i) {
+      const char c = raw[i];
+      if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') device += c;
+    }
+  }
+  if (body["action"].is<const char*>()) {
+    const String raw = body["action"].as<const char*>();
+    for (size_t i = 0; i < raw.length() && action.length() < M5IR_MAX_ACTION_LEN; ++i) {
+      const char c = raw[i];
+      if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') action += c;
+    }
+  }
+  if (device.isEmpty()) return String();
+  if (action.isEmpty()) return device;
+  return device + "/" + action;
+}
+
 ApiResponse handleLearn(JsonDocument& body) {
   uint32_t timeoutMs = M5IR_LEARN_TIMEOUT_DEFAULT_MS;
   if (!body.isNull() && !body["timeout_ms"].isNull()) {
@@ -181,12 +208,15 @@ ApiResponse handleLearn(JsonDocument& body) {
     return errorResponse(503, "IR_NOT_AVAILABLE", irengine::unavailableReason());
   }
 
+  const String target = learnTargetLabel(body);
   String busyCode;
   String busyMessage;
   if (!appstate::tryBeginLearn(timeoutMs, &busyCode, &busyMessage)) {
     return errorResponse(409, busyCode.c_str(), busyMessage);
   }
-  appstate::setStatusMessage("learning IR signal");
+  appstate::setLearnTarget(target);
+  appstate::setStatusMessage(target.isEmpty() ? String("learning IR signal")
+                                              : "learning " + target);
 
   IrSignal signal;
   String captureErrorCode;

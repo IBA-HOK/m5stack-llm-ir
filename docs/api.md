@@ -100,6 +100,7 @@ curl -s -H "Authorization: Bearer $M5IR_API_KEY" "$M5IR_BASE_URL/api/health" | p
   "devices": 2,
   "message": "ready",
   "learn_remaining_ms": 0,
+  "learn_target": "",
   "reset_reason": "power_on",
   "free_heap": 169116
 }
@@ -150,6 +151,8 @@ curl -s -X POST "$M5IR_BASE_URL/api/ir/learn" \
 | パラメータ | 型 | 既定 | 制約 |
 | --- | --- | --- | --- |
 | `timeout_ms` | int | 10000 | 500〜30000（上限は仕様 4.3） |
+| `device` | string | 任意 | 表示用。M5 画面に `LEARN: <device>/<action>` と出す |
+| `action` | string | 任意 | 表示用。上記と組み合わせる（1〜32 文字、`[a-z0-9_]`） |
 
 * 学習中の別の `learn` / `send` は **409 `IR_BUSY`**。
 * タイムアウトは **408 `LEARN_TIMEOUT`**。

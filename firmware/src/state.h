@@ -86,6 +86,10 @@ bool tryBeginSend(String* errCode, String* errMsg);
 void endSend();
 uint32_t learnRemainingMs();
 uint32_t learnTimeoutMs();
+// Human readable target of the current/last learning session, e.g.
+// "tv/ch1". Shown on the LCD while LEARNING.
+void setLearnTarget(const String& target);
+String learnTarget();
 
 // ---------------------------------------------------------------------------
 // Device database (persisted to /ir_db.json by storage.cpp)

@@ -17,6 +17,7 @@ uint32_t s_bootMs = 0;
 
 uint32_t s_learnTimeoutMs = 0;
 uint32_t s_learnDeadlineMs = 0;
+String s_learnTarget;
 
 std::map<String, IrDevice> s_devices;
 
@@ -184,6 +185,7 @@ bool tryBeginLearn(uint32_t timeoutMs, String* errCode, String* errMsg) {
 
 void endLearn() {
   StateLock lock;
+  s_learnTarget = "";
   if (s_state == RunState::Learning) {
     s_state = RunState::Idle;
     s_stateSinceMs = millis();
@@ -227,6 +229,16 @@ uint32_t learnRemainingMs() {
 uint32_t learnTimeoutMs() {
   StateLock lock;
   return s_learnTimeoutMs;
+}
+
+void setLearnTarget(const String& target) {
+  StateLock lock;
+  s_learnTarget = target;
+}
+
+String learnTarget() {
+  StateLock lock;
+  return s_learnTarget;
 }
 
 // ---------------------------------------------------------------------------

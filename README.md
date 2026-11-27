@@ -336,6 +336,8 @@ IR 受信・送信は **IRremoteESP8266 本体の網羅的なデコーダ／送�
 * `POST /api/ir/send {device:test_tv, action:power}` → 200 / `executed_steps: 1`
 * 再起動後も `devices: 1` を LittleFS から復元し、同じアクションを送信可能
 * 本体 LCD に `devices` 件数と `message`（`sent 1 step(s)` 等）を表示
+* `POST /api/ir/learn` に `device` / `action` を付けると、学習中に LCD へ
+  **`LEARN: <device>/<action>`** と残り秒数を表示（`/api/health` の `learn_target` でも取得可能）
 
 > 以前「学習はできるが送信できない／devices が 0 のまま」だった原因は、50ms キャプチャに
 > リピート信号が結合して長さ判定に落ち、raw ノイズとして保存されていたことです

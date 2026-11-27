@@ -381,3 +381,48 @@ m5stack-llm-ir/
 - **v0.2:** スマホからWi-Fi・APIキー・リレーURLを設定できるCaptive Portal初期セットアップUI。
 - **v0.3:** エアコン向けパラメータ制御（温度・運転モード指定）のオプション対応。
 - **v0.4:** [Home Assistant REST API](https://contributors.home-assistant.io/core/internals/rest-api/)互換エンドポイント（`/api/states`, `/api/services`）の追加、リモコン以外のM5 Unit（温湿度・人感・リレー）対応、およびHome Assistant用カスタム統合の同梱。
+
+---
+
+# 付録A（ローカル追記: 2026-11-27）
+
+> この付録は、共有仕様書 v0.2.0-draft の原文には含まれない、本リポジトリでの実機検証・拡張メモです。
+> 再取得（`spec/extract_spec.py`）で `SPEC.md` を上書きした場合は、この付録を再適用してください。
+
+## A.1 初代 M5Stack Core の赤 Grove（PORT.A）での Unit IR 利用（実験的）
+
+初代 M5Stack Core は本体に黒い Grove（PORT.B）がなく、赤い Grove（PORT.A: G21/G22）のみを
+搭載しています。仕様 3.2 では Port A の直接接続を想定していませんが、ファームウェア側で
+M5Unified の内部 I2C を解放（`M5.In_I2C.release()`）することで GPIO として利用できます。
+
+* 実機結果（Unit IR U002, 2026-11-27）
+  * 送信: **G21（黄線）** で IR LED の点滅を確認
+  * 受信: **G22（白線）** でリモコン信号を検出（G21/G22 のエッジスキャンで確認）
+  * 起動ログ: `[ir] internal I2C released; PORT.A G21/G22 are free for IR`
+* 課題: PORT.A は I2C 用プルアップが残るため受信波形がノイズ混じりになりやすい。
+  エアコンの長い生波形の再送は不安定だった。
+* 推奨: 安定運用には **M5-Bus の G26（黄=IR_TX）/ G36（白=IR_RX）** への配線（仕様 3.2 推奨）。
+* ビルド環境: `m5stack-core16m-porta-ir`（PORT.A 実験用）/ `m5stack-core16m-ir`（M5-Bus 用）
+* 回路図: [Unit IR schematic](../docs/images/unit_ir_schematic.png)
+
+## A.2 Unit IR の送信電力と、高輝度 IR 送信機（Tuya WiFi IR Remote の流用）
+
+Unit IR の送信回路は `5V → R1(150Ω) → IR LED → SS8050(NPN) → GND` で、
+LED 電流は約 25mA（一般的な赤外線リモコンは 100〜300mA）。このため送信電力・到達距離は
+一般のリモコンより低い。ソフトウェア（IRsend の duty 50%・フレーム2回送信）では電流は増やせず、
+本質的な改善にはハードウェア側の変更が必要。
+
+改善案（後日実施予定）:
+
+* 市販の **Tuya WiFi IR Remote Control**（7 個の IR LED・赤外線透過ケース・約 $9）を改造し、
+  内蔵 Wi-Fi モジュールを取り外して送信信号・5V・GND を M5Stack に接続する。
+  * 参考記事: <https://bokunimo.net/blog/esp/2736/>（赤外線リモコン送信機を M5Stack に接続）
+  * 期待効果: LED 7 個・100mA 級の駆動により、送信電力とカバレッジ（全方向・部屋全体）が大幅に向上
+  * 受信（学習）は Unit IR をそのまま使用する（送信のみ Tuya 基板へ）
+  * 接続例: Tuya 信号 → M5 G26（または G19）、5V / GND 共通。Unit IR の白（RX）→ G36
+  * 注意: Wi-Fi モジュールの取り外し・はんだ付けが必要。7 LED のパルス電流対策として
+    5V ラインに 100〜470µF 程度のコンデンサを追加。暖房・加熱・調理など安全に関わる機器は制御しない。
+* 予定ビルド環境: `m5stack-core16m-tuya-ir`（TX=G26, RX=G36）※実装は後日
+
+代替（小規模改善）: Unit IR の R1（150Ω）を 47Ω へ交換すると約 75mA（約3倍）になるが、
+LED 1 個・指向性の問題は残るため、効果は Tuya 基板流用のほうが大きい。

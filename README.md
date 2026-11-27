@@ -320,13 +320,27 @@ curl -s -o /dev/null -w "%{http_code}\n" $WORKER/api/devices
 IR 受信・送信は **IRremoteESP8266 本体の網羅的なデコーダ／送信ディスパッチャ**を
 そのまま利用します（個別プロトコルの独自実装は廃止）。
 
-* 受信: `IRrecv::decode()` を `max_skip=10` で呼び、PORT.A の先頭ノイズを
-  ライブラリ側にスキップさせる（`IRrecvDumpV2` 準拠: 50ms タイムアウト + save_buffer）
+* 受信: `IRrecv::decode()` を `IRrecvDumpV2` 準拠設定（50ms タイムアウト +
+  save_buffer）で呼ぶ。ノイズで先頭がずれた波形は raw 側で処理する
 * 送信: `IRsend::send(decode_type_t, state/value, ...)` で全対応プロトコルを送出
   （A/C は 14〜53 バイトの state を使い、チェックサム・タイミングを再生成）
 * 未知プロトコルのみ raw µs 配列へフォールバック（`resultToRawArray()` と同じ変換、
   A/C は複数フレームから1フレームを抽出して 3 回連続送信）
 * 誤デコード防止: デコード結果の bit 数と取得長が整合しない場合は raw にフォールバック
+  （リピート結合は最大 20 回まで許容し、Sony 等の正しいプロトコルデコードを維持）
+
+### 実機検証（2026-11-27）
+
+* テレビのリモコンを **SONY 12bit** として正しくデコード（raw 結合ではなく protocol 保存）
+* `POST /api/devices/test_tv/actions` → 201 / `stored_format: protocol`
+* `POST /api/ir/send {device:test_tv, action:power}` → 200 / `executed_steps: 1`
+* 再起動後も `devices: 1` を LittleFS から復元し、同じアクションを送信可能
+* 本体 LCD に `devices` 件数と `message`（`sent 1 step(s)` 等）を表示
+
+> 以前「学習はできるが送信できない／devices が 0 のまま」だった原因は、50ms キャプチャに
+> リピート信号が結合して長さ判定に落ち、raw ノイズとして保存されていたことです
+> （v0.1.1 で修正）。Muse 側はテスト送信が成功しないとスキル仕様どおり保存しないため、
+> devices が 0 のままでした。
 
 > 実機メモ: Unit IR (U002) の送信 LED は回路図上 R1=150Ω で約 25mA 駆動。
 > 至近距離でも反応しない場合は、赤外線透過ケース付きの 7 LED 送信機

@@ -40,10 +40,10 @@ IRsend s_sender(M5IR_IR_TX_PIN);
 constexpr uint8_t kCaptureTimeoutMs = 50;
 constexpr bool kUseSaveBuffer = true;
 
-// The original Core's red Grove (PORT.A) shares the internal I2C bus, so the
-// first few captured entries are often noise/garbage. The library can search
-// further into the buffer: offsets 1, 3, 5, ..., (2*10 + 1).
-constexpr uint8_t kMaxNoiseSkip = 10;
+// Do not let the library search shifted offsets: doing so made long A/C
+// captures match unrelated short protocols (false positives). Captures with a
+// noisy prefix are handled by the raw fallback path instead.
+constexpr uint8_t kMaxNoiseSkip = 0;
 
 IRrecv s_receiver(M5IR_IR_RX_PIN, M5IR_IR_RECV_BUFFER, kCaptureTimeoutMs,
                   kUseSaveBuffer);
@@ -64,9 +64,13 @@ bool decodeLengthPlausible(const decode_results& results) {
   if (results.bits == 0) return false;
   const uint32_t expected = 2UL * results.bits;
   if (hasACState(results.decode_type)) {
-    return results.rawlen >= expected;  // at least one full state frame
+    // One or more state frames (remotes repeat A/C frames 2-3 times).
+    return results.rawlen >= expected && results.rawlen <= expected * 8;
   }
-  return results.rawlen + 8 >= expected && results.rawlen <= expected + 24;
+  // Simple protocols: many repeats can be merged into one capture.
+  const uint32_t maxRepeats = 20;
+  return results.rawlen + 8 >= expected &&
+         results.rawlen <= expected * maxRepeats;
 }
 
 bool decodeToSignal(const decode_results& results, IrSignal* out,
@@ -222,8 +226,6 @@ bool capture(uint32_t timeoutMs, IrSignal* out, String* errorCode,
 
   const uint32_t startedAt = millis();
   while ((millis() - startedAt) < timeoutMs) {
-    // max_skip=10 lets the library skip leading noise entries before it tries
-    // its protocol decoders (offsets 1..21 in 2-entry steps).
     if (s_receiver.decode(&results, nullptr, kMaxNoiseSkip, 0)) {
       if (results.repeat) {
         s_receiver.resume();
